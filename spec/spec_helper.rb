@@ -1,4 +1,5 @@
 require "bundler/setup"
+require "active_record"
 require "pgpool_no_load_balance"
 
 RSpec.configure do |config|
