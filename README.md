@@ -35,6 +35,15 @@ irb(main):001:0> User.pgpool_nlb.all
   /*NO LOAD BALANCE*/ SELECT "users".* FROM "users" LIMIT $1  [["LIMIT", 11]]
 ```
 
+### blocks
+
+Use `PgpoolNoLoadBalance.force` block to force all read queries to run with `pgpool_nlb` enabled inside the block
+
+```rb
+irb(main):001:0> PgpoolNoLoadBalance.force { User.all }
+  /*NO LOAD BALANCE*/ SELECT "users".* FROM "users" LIMIT $1  [["LIMIT", 11]]
+```
+
 ### unscope
 
 Can remove the scope with the unscope method.
