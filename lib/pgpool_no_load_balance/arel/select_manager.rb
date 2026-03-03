@@ -7,7 +7,7 @@ module PgpoolNoLoadBalance
       end
 
       def pgpool_nlb?
-        @pgpool_nlb_flag
+        @pgpool_nlb_flag || PgpoolNoLoadBalance.force?
       end
     end
   end
