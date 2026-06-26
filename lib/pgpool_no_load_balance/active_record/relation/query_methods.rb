@@ -15,7 +15,6 @@ module PgpoolNoLoadBalance
       end
 
       def no_load_balance_value=(value)
-        assert_mutability!
         @values[:no_load_balance] = value
       end
 

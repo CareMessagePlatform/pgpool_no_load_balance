@@ -14,7 +14,9 @@ RSpec.describe PgpoolNoLoadBalance::ActiveRecord::QueryMethods do
         copy
       end
 
-      def assert_mutability!; end
+      # NOTE: real ActiveRecord::Relation in Rails 8 has NO `assert_mutability!`
+      # method, so the stand-in must not define one either — otherwise the spec
+      # masks a NoMethodError that real AR raises.
 
       def unscope!(*args)
         args.each do |scope|
