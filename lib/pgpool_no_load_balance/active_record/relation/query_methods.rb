@@ -1,28 +1,41 @@
 module PgpoolNoLoadBalance
   module ActiveRecord
     module QueryMethods
-      def pgpool_nlb(value = true)
-        spawn.pgpool_nlb!(value)
+      def no_load_balance(value = true)
+        spawn.no_load_balance!(value)
       end
 
-      def pgpool_nlb!(value = true)
-        self.pgpool_nlb_value = value
+      def no_load_balance!(value = true)
+        self.no_load_balance_value = value
         self
       end
 
-      def pgpool_nlb_value
-        @values.fetch(:pgpool_nlb, nil)
+      def no_load_balance_value
+        @values.fetch(:no_load_balance, nil)
       end
 
-      def pgpool_nlb_value=(value)
-        @values[:pgpool_nlb] = value
+      def no_load_balance_value=(value)
+        assert_mutability!
+        @values[:no_load_balance] = value
+      end
+
+      alias_method :pgpool_nlb, :no_load_balance
+      alias_method :pgpool_nlb!, :no_load_balance!
+      alias_method :pgpool_nlb_value, :no_load_balance_value
+      alias_method :pgpool_nlb_value=, :no_load_balance_value=
+
+      # Accept the legacy :pgpool_nlb symbol as an alias for :no_load_balance
+      # so unscope works regardless of which name set the scope.
+      def unscope!(*args)
+        args = args.map { |arg| arg == :pgpool_nlb ? :no_load_balance : arg }
+        super(*args)
       end
 
       private
 
       def build_arel(...)
         arel = super(...)
-        arel.pgpool_nlb(pgpool_nlb_value)
+        arel.no_load_balance(no_load_balance_value)
         arel
       end
     end
