@@ -7,9 +7,51 @@ require "pgpool_no_load_balance/railtie" if defined?(::Rails::Railtie)
 require "pgpool_no_load_balance/version"
 
 module PgpoolNoLoadBalance
-  NLB_COMMENT = '/*NO LOAD BALANCE*/'
+  # Ordered: iteration order defines comment emission order (pgpool leads).
+  COMMENTS = {
+    pgpool: '/*NO LOAD BALANCE*/',
+    pgdog:  '/* pgdog_role: primary */',
+  }.freeze
+
+  DEFAULT_BACKENDS = [:pgpool].freeze
+
+  # Alias of the pgpool comment for any external reference. Internal code
+  # resolves emitted comments via PgpoolNoLoadBalance.comment_prefix.
+  NLB_COMMENT = COMMENTS[:pgpool]
 
   class PostgreSQLAdapterMissing < StandardError; end
+
+  def self.backends
+    @backends ||= DEFAULT_BACKENDS.dup
+  end
+
+  def self.backends=(value)
+    names = Array(value)
+            .flat_map { |v| v.is_a?(String) ? v.split(',') : v }
+            .map { |v| v.to_s.strip.to_sym }
+            .reject { |v| v == :"" }
+            .uniq
+
+    unknown = names - COMMENTS.keys
+    unless unknown.empty?
+      raise ArgumentError, "Unknown backend(s) #{unknown.inspect}. Valid backends: #{COMMENTS.keys.inspect}"
+    end
+    if names.empty?
+      raise ArgumentError, "At least one backend is required. Valid backends: #{COMMENTS.keys.inspect}"
+    end
+
+    # Canonical order = COMMENTS key order (pgpool before pgdog).
+    @backends = COMMENTS.keys.select { |k| names.include?(k) }
+  end
+
+  # Convenience singular setter.
+  def self.backend=(value)
+    self.backends = Array(value)
+  end
+
+  def self.comment_prefix
+    backends.map { |b| COMMENTS.fetch(b) }.join(' ')
+  end
 
   def self.force
     Thread.current[:pgpool_nlb_force] = true
@@ -28,7 +70,7 @@ module PgpoolNoLoadBalance
     end
     ::ActiveRecord::Base.extend PgpoolNoLoadBalance::ActiveRecord::Querying
     ::ActiveRecord::Relation.prepend PgpoolNoLoadBalance::ActiveRecord::QueryMethods
-    ::ActiveRecord::Relation::VALID_UNSCOPING_VALUES << :pgpool_nlb
+    ::ActiveRecord::Relation::VALID_UNSCOPING_VALUES << :no_load_balance << :pgpool_nlb
     ::Arel::SelectManager.include PgpoolNoLoadBalance::Arel::SelectManager
     ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend PgpoolNoLoadBalance::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
     ::ActiveRecord::ExplainSubscriber.prepend PgpoolNoLoadBalance::ActiveRecord::ExplainSubscriber
