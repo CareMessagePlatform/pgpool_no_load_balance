@@ -22,6 +22,23 @@ straightforward as possible.
 
 ### Security
 
+## [1.3.0] - 2026-06-26
+
+Configurable, multi-valued backend selection for pgpool and/or PgDog.
+
+### Added
+- `PgpoolNoLoadBalance.backends` / `backends=` accepts one or more backends
+  (`:pgpool`, `:pgdog`, an array, or a comma-separated string). Defaults to
+  `[:pgpool]`, so existing behavior is unchanged.
+- When multiple backends are configured, each backend's comment is prepended in
+  canonical order (pgpool first), e.g.
+  `/*NO LOAD BALANCE*/ /* pgdog_role: primary */`.
+
+### Changed
+- Renamed the relation/model/arel API to `no_load_balance`; `pgpool_nlb` remains
+  a full alias (method, `execute:` keyword, and unscope symbol).
+- `ExplainSubscriber` now strips every known backend comment.
+
 ## [1.2.0] - 2025-08-28
 
 Rails 7.2 support
