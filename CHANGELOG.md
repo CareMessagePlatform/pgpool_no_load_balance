@@ -22,6 +22,17 @@ straightforward as possible.
 
 ### Security
 
+## [1.3.1] - 2026-06-29
+
+### Fixed
+- Comment was prepended twice under `PgpoolNoLoadBalance.force` when the query
+  cache is enabled (e.g. inside a Sidekiq job or web request), producing
+  `/*NO LOAD BALANCE*/ /* pgdog_role: primary */ /*NO LOAD BALANCE*/ /* pgdog_role: primary */ SELECT ...`.
+  `QueryCache#select_all` compiles the arel to SQL and then hands that SQL
+  string to `DatabaseStatements#select_all`, so `to_sql_and_binds` runs twice;
+  with the `force?` thread-local still set on the second pass the marker was
+  added again. Prepending is now idempotent.
+
 ## [1.3.0] - 2026-06-26
 
 Configurable, multi-valued backend selection for pgpool and/or PgDog.

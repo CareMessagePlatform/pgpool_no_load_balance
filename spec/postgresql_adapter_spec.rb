@@ -72,4 +72,50 @@ RSpec.describe PgpoolNoLoadBalance::ActiveRecord::ConnectionAdapters::PostgreSQL
       expect(sql).to eq("SELECT 1")
     end
   end
+
+  # Reproduces the real Rails 8 call path that double-prepended the comment:
+  # ConnectionAdapters::QueryCache#select_all calls to_sql_and_binds(arel) to
+  # build the cache key (yielding SQL *with* the comment), then hands that SQL
+  # *string* to DatabaseStatements#select_all via super, which calls
+  # to_sql_and_binds a second time. Rails passes a String straight through, so
+  # the only thing deciding whether to prepend again is the gem. This stub
+  # mirrors Rails: arel-like input compiles to "SELECT 1", String input passes
+  # through unchanged.
+  describe "double invocation across the two select_all layers" do
+    let(:rails_like_adapter_class) do
+      Class.new do
+        private
+
+        def to_sql_and_binds(arel_or_sql_string, binds = [], preparable = nil, allow_retry = false)
+          sql = arel_or_sql_string.is_a?(String) ? arel_or_sql_string : "SELECT 1"
+          [sql, binds, preparable, allow_retry]
+        end
+      end.tap { |klass| klass.prepend(described_class) }
+    end
+
+    let(:rails_like_adapter) { rails_like_adapter_class.new }
+    let(:unflagged_arel)     { double(no_load_balance?: false) }
+    let(:flagged_arel)       { double(no_load_balance?: true) }
+
+    # Simulate QueryCache#select_all -> DatabaseStatements#select_all: compile
+    # the arel, then re-run to_sql_and_binds on the resulting SQL string.
+    def double_invoke(arel)
+      sql1, = rails_like_adapter.send(:to_sql_and_binds, arel)
+      sql2, = rails_like_adapter.send(:to_sql_and_binds, sql1)
+      sql2
+    end
+
+    it "prepends the comment only once under force" do
+      PgpoolNoLoadBalance.backends = [:pgpool, :pgdog]
+      sql = nil
+      PgpoolNoLoadBalance.force { sql = double_invoke(unflagged_arel) }
+      expect(sql).to eq("/*NO LOAD BALANCE*/ /* pgdog_role: primary */ SELECT 1")
+    end
+
+    it "prepends the comment only once for a flagged arel" do
+      PgpoolNoLoadBalance.backends = [:pgpool, :pgdog]
+      sql = double_invoke(flagged_arel)
+      expect(sql).to eq("/*NO LOAD BALANCE*/ /* pgdog_role: primary */ SELECT 1")
+    end
+  end
 end
