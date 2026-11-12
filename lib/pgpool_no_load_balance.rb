@@ -31,6 +31,14 @@ module PgpoolNoLoadBalance
     ::ActiveRecord::Relation::VALID_UNSCOPING_VALUES << :pgpool_nlb
     ::Arel::SelectManager.include PgpoolNoLoadBalance::Arel::SelectManager
     ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend PgpoolNoLoadBalance::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
-    ::ActiveRecord::ExplainSubscriber.prepend PgpoolNoLoadBalance::ActiveRecord::ExplainSubscriber
+    explain_subscriber.prepend PgpoolNoLoadBalance::ActiveRecord::ExplainSubscriber
+  end
+
+  def self.explain_subscriber
+    if defined?(::ActiveRecord::ExplainRegistry::Subscriber)
+      ::ActiveRecord::ExplainRegistry::Subscriber
+    else
+      ::ActiveRecord::ExplainSubscriber
+    end
   end
 end
